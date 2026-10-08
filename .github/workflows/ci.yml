@@ -57,3 +57,13 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  site:
+    name: Build the website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: python site/build.py
