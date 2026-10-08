@@ -227,7 +227,7 @@ def add_heading_ids(body: str) -> tuple[str, list[tuple[int, str, str]]]:
         while anchor in used:
             anchor, n = f"{base}-{n}", n + 1
         used.add(anchor)
-        toc.append((level, anchor, re.sub(r"<[^>]+>", "", text).strip()))
+        toc.append((level, anchor, text.strip()))
         if not existing:
             attrs = f'{attrs} id="{anchor}"'
         return (
@@ -450,6 +450,11 @@ def render_doc(doc: str) -> str:
 
     def flush() -> None:
         nonlocal want_code
+        if paragraph and paragraph[0].lstrip().startswith(">>>"):
+            # A doctest: show it as code, exactly as written.
+            parts.append(code_block("python", "\n".join(line.strip() for line in paragraph)))
+            paragraph.clear()
+            return
         if paragraph:
             text = " ".join(line.strip() for line in paragraph)
             want_code = text.endswith("::")
@@ -565,11 +570,19 @@ def nav_html(current: str) -> str:
     return "".join(groups)
 
 
+def _toc_label(text: str) -> str:
+    """Plain heading text, keeping a workshop step number as its own element."""
+    step = re.match(r'\s*<span class="step">(\d+)</span>', text)
+    plain = re.sub(r"<[^>]+>", "", text[step.end() :] if step else text).strip()
+    label = html.escape(html.unescape(plain), quote=False)
+    return f'<span class="toc-num">{step.group(1)}</span>{label}' if step else label
+
+
 def toc_html(toc: list[tuple[int, str, str]]) -> str:
     if not toc:
         return ""
     items = "".join(
-        f'<li class="toc-{level}"><a href="#{anchor}">{html.escape(text)}</a></li>'
+        f'<li class="toc-{level}"><a href="#{anchor}">{_toc_label(text)}</a></li>'
         for level, anchor, text in toc
     )
     return f'<nav class="toc" aria-label="On this page"><p>On this page</p><ul>{items}</ul></nav>'
@@ -608,13 +621,14 @@ def render(page: Page, template: Template) -> str:
     elif page.layout == "workshop":
         main = (
             '<div class="docs-layout workshop-layout">'
-            f'<aside class="sidebar">{toc_html([t for t in page.toc if t[0] == 2])}</aside>'
+            '<aside class="sidebar"><details class="sidebar-menu" open><summary>Steps</summary>'
+            f"{toc_html([t for t in page.toc if t[0] == 2])}</details></aside>"
             f'<article class="prose">{page.body}</article>'
             "</div>"
         )
     else:
         main = page.body
-    path = "/" if page.slug == "" else f"/{page.slug}/"
+    path = "/" if page.slug == "" else "/404.html" if page.slug == "404" else f"/{page.slug}/"
     title = (
         "MailingKit: transactional email for Python"
         if page.slug == ""

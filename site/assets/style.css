@@ -93,6 +93,13 @@ body {
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
 }
 
 img,
@@ -187,6 +194,11 @@ a:hover {
   flex: none;
 }
 
+.brand,
+.theme-toggle {
+  flex: none;
+}
+
 .brand-mark rect {
   fill: var(--accent);
 }
@@ -227,6 +239,7 @@ a:hover {
 }
 
 .nav-github svg {
+  flex: none;
   width: 17px;
   height: 17px;
   fill: currentColor;
@@ -310,6 +323,18 @@ a:hover {
 
   .header-inner {
     gap: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .nav-github {
+    display: none !important;
+  }
+}
+
+@media (max-width: 359px) {
+  .brand span {
+    display: none;
   }
 }
 
@@ -1158,6 +1183,14 @@ th {
   border-left-color: var(--accent);
 }
 
+.toc-num {
+  display: inline-block;
+  min-width: 1.9em;
+  font-family: var(--font-label);
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
 .toc .toc-3 a {
   padding-left: 24px;
   font-size: 0.85rem;
@@ -1173,6 +1206,7 @@ th {
 .prose {
   min-width: 0;
   max-width: 760px;
+  overflow-wrap: break-word;
 }
 
 .prose h1 {
