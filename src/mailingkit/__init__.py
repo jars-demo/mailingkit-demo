@@ -10,6 +10,7 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+from mailingkit.client import MailingKit, SyncMailingKit
 from mailingkit.config import Secret
 from mailingkit.errors import (
     AuthenticationError,
@@ -28,9 +29,11 @@ from mailingkit.errors import (
     TemporaryProviderError,
     ValidationError,
 )
+from mailingkit.idempotency import IdempotencyStore, InMemoryIdempotencyStore
 from mailingkit.message import Address, Attachment, EmailMessage
 from mailingkit.providers import EmailProvider, register_provider
 from mailingkit.results import MailEvent, ProviderResponse, SendResult
+from mailingkit.retry import NO_RETRY, RetryPolicy
 from mailingkit.templates import RenderedTemplate, Template, TemplateRenderer
 from mailingkit.validation import Limits
 
@@ -40,15 +43,19 @@ except PackageNotFoundError:  # pragma: no cover (running from a source checkout
     __version__ = "0.0.0"
 
 __all__ = [
+    "NO_RETRY",
     "Address",
     "Attachment",
     "AuthenticationError",
     "ConfigurationError",
     "EmailMessage",
     "EmailProvider",
+    "IdempotencyStore",
+    "InMemoryIdempotencyStore",
     "InvalidAddressError",
     "Limits",
     "MailEvent",
+    "MailingKit",
     "MailingKitError",
     "MessageTooLargeError",
     "PermanentProviderError",
@@ -57,8 +64,10 @@ __all__ = [
     "RateLimitError",
     "RecipientRejectedError",
     "RenderedTemplate",
+    "RetryPolicy",
     "Secret",
     "SendResult",
+    "SyncMailingKit",
     "Template",
     "TemplateDataError",
     "TemplateError",
