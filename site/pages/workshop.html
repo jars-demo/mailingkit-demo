@@ -1,0 +1,279 @@
+<!--
+slug: workshop
+title: Workshop
+description: A hands-on MailingKit workshop. In twelve short steps, go from pip install to templates, real providers, retries, idempotency, FastAPI, Django, tests and a custom provider.
+layout: workshop
+-->
+<p class="eyebrow">Hands-on &middot; about 45 minutes</p>
+<h1>MailingKit workshop</h1>
+<p class="lead">
+  Twelve short steps that take a fresh folder to a tested, provider-independent mailing setup.
+  Every step works offline until step 06, and nothing is ever sent to a real person.
+</p>
+<div class="callout">
+  <p class="callout-title">You need</p>
+  <p>Python 3.11 or newer and <a href="https://docs.astral.sh/uv/">uv</a> (or pip). Docker is optional, for a local inbox in step 06.</p>
+</div>
+
+<h2 id="install"><span class="step">01</span>Install MailingKit</h2>
+<p class="step-meta">3 minutes</p>
+```bash
+mkdir mailing-workshop && cd mailing-workshop
+uv init --bare
+uv add mailingkit
+```
+<p>Check it imports and see which version you have:</p>
+```bash
+uv run python -c "import mailingkit; print(mailingkit.__version__)"
+```
+
+<h2 id="first-email"><span class="step">02</span>Send your first email</h2>
+<p class="step-meta">3 minutes</p>
+<p>Create <code>send.py</code>:</p>
+```python send.py
+import asyncio
+from mailingkit import MailingKit
+
+async def main():
+    mail = MailingKit.from_env(default_sender="Workshop <no-reply@example.com>")
+    result = await mail.send(
+        to="ada@example.com",
+        subject="Hello from MailingKit",
+        html="<p>It <strong>works</strong>.</p>",
+    )
+    print("accepted:", result.id, "via", result.provider)
+
+asyncio.run(main())
+```
+```bash
+uv run python send.py
+```
+<p>
+  The email is printed, not sent: no provider is configured, so MailingKit uses the console
+  provider. Notice the text body was generated from your HTML.
+</p>
+
+<h2 id="preview"><span class="step">03</span>Preview it like a recipient</h2>
+<p class="step-meta">3 minutes</p>
+<p>Switch to the file provider with one variable and run again:</p>
+```bash
+MAILINGKIT_PROVIDER=file uv run python send.py
+```
+<p>
+  Open the new file in <code>.mailingkit/outbox/</code>. Your mail client shows exactly what the
+  recipient would see. On Windows PowerShell, set the variable with
+  <code>$env:MAILINGKIT_PROVIDER="file"</code> first.
+</p>
+
+<h2 id="template"><span class="step">04</span>Create a template</h2>
+<p class="step-meta">5 minutes</p>
+<p>Move the copy out of your code. Create these two files:</p>
+```text templates/welcome/subject.txt
+Welcome to {{ product }}, {{ name }}
+```
+```text templates/welcome/body.html
+<h1>Welcome, {{ name }}</h1>
+<p>Your {{ product }} account is ready.</p>
+<p><a href="{{ login_url }}">Sign in</a></p>
+```
+<p>Then send it:</p>
+```python send.py
+mail = MailingKit.from_env(
+    default_sender="Workshop <no-reply@example.com>",
+    templates="templates",
+)
+await mail.send_template(
+    "welcome",
+    {"name": "Ada", "product": "Acme", "login_url": "https://acme.example/login"},
+    to="ada@example.com",
+)
+```
+<p>Now remove <code>"product"</code> from the data and run it again. MailingKit refuses to send an email with a hole in it and tells you which variable is missing.</p>
+
+<h2 id="typed-data"><span class="step">05</span>Add typed template data</h2>
+<p class="step-meta">5 minutes</p>
+<p>Bind the template to a dataclass so mistakes are caught before rendering, with every problem listed:</p>
+```python send.py
+from dataclasses import dataclass
+from mailingkit import Template
+
+@dataclass
+class Welcome:
+    name: str
+    product: str
+    login_url: str
+
+WELCOME = Template("welcome", Welcome)
+
+await mail.send_template(
+    WELCOME,
+    Welcome(name="Ada", product="Acme", login_url="https://acme.example/login"),
+    to="ada@example.com",
+)
+```
+<p>Try passing <code>{"name": "Ada"}</code> instead of a <code>Welcome</code>. The error lists both missing fields. Your editor and type checker now understand the data too.</p>
+
+<h2 id="real-provider"><span class="step">06</span>Connect a real provider</h2>
+<p class="step-meta">5 minutes</p>
+<p>Start <a href="https://mailpit.axllent.org/">Mailpit</a>, a local inbox that speaks SMTP:</p>
+```bash
+docker run --rm -p 8025:8025 -p 1025:1025 axllent/mailpit
+```
+<p>Create a <code>.env</code> file and load it (or export the variables):</p>
+```env .env
+MAILINGKIT_PROVIDER=smtp
+MAILINGKIT_SMTP_HOST=localhost
+MAILINGKIT_SMTP_PORT=1025
+MAILINGKIT_SMTP_SECURITY=none
+```
+```bash
+uv run --env-file .env python send.py
+```
+<p>
+  Open <code>http://localhost:8025</code>: the email arrived over real SMTP. Your code did not
+  change. Switching to production later is the same move: different variables, for example
+  <code>MAILINGKIT_PROVIDER=resend</code> and <code>MAILINGKIT_RESEND_API_KEY</code>.
+</p>
+
+<h2 id="errors"><span class="step">07</span>Handle errors and retries</h2>
+<p class="step-meta">4 minutes</p>
+<p>Stop Mailpit and run <code>send.py</code> again. MailingKit retries the connection three times with backoff, then raises one clear error. Handle it:</p>
+```python send.py
+from mailingkit import ProviderError, ValidationError
+
+data = Welcome(name="Ada", product="Acme", login_url="https://acme.example/login")
+try:
+    await mail.send_template(WELCOME, data, to="ada@example.com")
+except ValidationError as error:
+    print("bad message:", error)
+except ProviderError as error:
+    print(f"{error.provider} failed (retryable={error.retryable}): {error}")
+```
+<p>The same <code>except</code> blocks work for every provider, because each adapter translates its own failures.</p>
+
+<h2 id="idempotency"><span class="step">08</span>Make sends idempotent</h2>
+<p class="step-meta">3 minutes</p>
+<p>Send the same email twice with the same key:</p>
+```python send.py
+for _ in range(2):
+    result = await mail.send_template(
+        WELCOME, data, to="ada@example.com", idempotency_key="welcome:ada"
+    )
+    print(result.id, "duplicate" if result.duplicate else "sent")
+```
+<p>Only one email arrives in Mailpit. Use keys that name the business event, such as <code>order-shipped:1001</code>, so retries and double clicks never spam anyone.</p>
+
+<h2 id="fastapi"><span class="step">09</span>Integrate with FastAPI</h2>
+<p class="step-meta">5 minutes</p>
+```bash
+uv add fastapi uvicorn
+```
+```python app.py
+from fastapi import FastAPI
+from mailingkit import MailingKit
+
+from send import WELCOME, Welcome
+
+mail = MailingKit.from_env(default_sender="Workshop <no-reply@example.com>", templates="templates")
+app = FastAPI()
+
+@app.post("/signup")
+async def signup(name: str, email: str):
+    await mail.send_template(
+        WELCOME,
+        Welcome(name=name, product="Acme", login_url="https://acme.example/login"),
+        to=email,
+        idempotency_key=f"welcome:{email}",
+    )
+    return {"ok": True}
+```
+<p>
+  So <code>app.py</code> can import from <code>send.py</code>, keep <code>Welcome</code> and
+  <code>WELCOME</code> at the top level of <code>send.py</code> and change its last line to
+  <code>if __name__ == "__main__": asyncio.run(main())</code>. Then run:
+</p>
+```bash
+uv run --env-file .env uvicorn app:app --reload
+curl -X POST "localhost:8000/signup?name=Grace&email=grace@example.com"
+```
+
+<h2 id="django"><span class="step">10</span>Integrate with Django</h2>
+<p class="step-meta">4 minutes</p>
+<p>In a Django project, one setting routes all of Django's email through MailingKit:</p>
+```python settings.py
+MAILERS = {"default": {"BACKEND": "mailingkit.contrib.django.EmailBackend"}}
+# Django before 6.1: EMAIL_BACKEND = "mailingkit.contrib.django.EmailBackend"
+```
+<p>
+  Trigger a password reset from the admin login page, or call <code>send_mail()</code> in a shell.
+  It arrives in Mailpit through MailingKit, with no other code changes. For templates and
+  idempotency in views, use <code>SyncMailingKit</code>.
+</p>
+
+<h2 id="testing"><span class="step">11</span>Test your email code</h2>
+<p class="step-meta">4 minutes</p>
+```bash
+uv add --dev pytest pytest-asyncio
+```
+```python test_welcome.py
+import pytest
+from mailingkit import MailingKit
+from mailingkit.providers import MemoryProvider
+
+from send import WELCOME, Welcome
+
+@pytest.mark.asyncio
+async def test_welcome_email_has_login_link():
+    outbox = MemoryProvider()
+    mail = MailingKit(outbox, default_sender="app@example.com", templates="templates")
+
+    await mail.send_template(
+        WELCOME,
+        Welcome(name="Ada", product="Acme", login_url="https://acme.example/login"),
+        to="ada@example.com",
+    )
+
+    assert outbox.last.subject == "Welcome to Acme, Ada"
+    assert "https://acme.example/login" in outbox.last.html
+```
+```bash
+uv run pytest
+```
+<p>No network, no credentials, no Mailpit needed.</p>
+
+<h2 id="custom-provider"><span class="step">12</span>Write your own provider</h2>
+<p class="step-meta">5 minutes</p>
+<p>A provider is one async method. This one posts each email to a chat webhook, which is handy for internal alerts:</p>
+```python webhook_provider.py
+import json
+import urllib.request
+
+from mailingkit import EmailProvider, ProviderResponse, TemporaryProviderError
+
+class WebhookProvider(EmailProvider):
+    name = "webhook"
+
+    def __init__(self, url):
+        self.url = url
+
+    async def send(self, message, *, idempotency_key=None):
+        body = json.dumps({"text": f"{message.subject}\n\n{message.text}"}).encode()
+        request = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
+        try:
+            urllib.request.urlopen(request, timeout=10)
+        except OSError as error:
+            raise TemporaryProviderError("Webhook unreachable") from error
+        return ProviderResponse()
+```
+```python
+mail = MailingKit(WebhookProvider("https://hooks.example.com/..."), default_sender="alerts@example.com")
+```
+<p>Everything you built in steps 04 to 11 (templates, typed data, retries, idempotency, tests) works with it unchanged. That is the point of the adapter design.</p>
+
+<h2 id="next"><span class="step">13</span>Where next</h2>
+<ul>
+  <li>Read <a href="/docs/architecture/">How it fits</a> for the design and what is core versus optional.</li>
+  <li>Browse the <a href="/docs/api/">API reference</a>.</li>
+  <li>Coming in 0.2: <code>mail.enqueue()</code> and an optional worker for background sending.</li>
+  <li>Found a rough edge? <a href="https://github.com/jars-demo/mailingkit-demo/issues">Open an issue</a>.</li>
+</ul>
