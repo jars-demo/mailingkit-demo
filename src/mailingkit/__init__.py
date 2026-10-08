@@ -10,6 +10,25 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+from mailingkit.errors import (
+    AuthenticationError,
+    ConfigurationError,
+    InvalidAddressError,
+    MailingKitError,
+    MessageTooLargeError,
+    PermanentProviderError,
+    ProviderError,
+    RateLimitError,
+    RecipientRejectedError,
+    TemplateDataError,
+    TemplateError,
+    TemplateNotFoundError,
+    TemplateRenderError,
+    TemporaryProviderError,
+    ValidationError,
+)
+from mailingkit.message import Address, Attachment, EmailMessage
+from mailingkit.validation import Limits
 
 try:
     __version__ = version("mailingkit")
@@ -17,5 +36,24 @@ except PackageNotFoundError:  # pragma: no cover (running from a source checkout
     __version__ = "0.0.0"
 
 __all__ = [
+    "Address",
+    "Attachment",
+    "AuthenticationError",
+    "ConfigurationError",
+    "EmailMessage",
+    "InvalidAddressError",
+    "Limits",
+    "MailingKitError",
+    "MessageTooLargeError",
+    "PermanentProviderError",
+    "ProviderError",
+    "RateLimitError",
+    "RecipientRejectedError",
+    "TemplateDataError",
+    "TemplateError",
+    "TemplateNotFoundError",
+    "TemplateRenderError",
+    "TemporaryProviderError",
+    "ValidationError",
     "__version__",
 ]
