@@ -1,0 +1,95 @@
+<!--
+slug: docs
+title: Getting started
+description: Install MailingKit, configure a provider with environment variables and send your first email from Python.
+-->
+<p class="eyebrow">Start here</p>
+<h1>Getting started</h1>
+<p class="lead">
+  MailingKit gives your Python application one small API for sending email. You install it,
+  configure a provider, create one client and send. Everything else is opt-in.
+</p>
+
+<h2>Install</h2>
+```bash
+pip install mailingkit             # console, file, memory and SMTP providers
+pip install "mailingkit[resend]"   # adds the Resend provider (httpx)
+```
+<p>
+  MailingKit needs Python 3.11 or newer and runs on Linux, macOS and Windows. The core package
+  depends only on Jinja2, so installing it never pulls in a web framework, a queue or a tracing
+  library.
+</p>
+
+<h2>Send your first email</h2>
+<p>Create one client and send. With nothing configured, MailingKit uses the console provider, so this prints the email instead of sending it:</p>
+```python first_email.py
+import asyncio
+from mailingkit import MailingKit
+
+async def main():
+    mail = MailingKit.from_env(default_sender="no-reply@example.com")
+    result = await mail.send(
+        to="ada@example.com",
+        subject="Your export is ready",
+        html="<p>Hi Ada, your export is ready to <a href='https://example.com/x'>download</a>.</p>",
+    )
+    print(result.id, result.provider)
+
+asyncio.run(main())
+```
+<p>
+  A plain text part is generated from the HTML automatically, because a text alternative
+  improves deliverability. Pass <code>text=</code> yourself if you want to control it.
+</p>
+
+<h2>Configure a real provider</h2>
+<p>When you are ready to deliver for real, set environment variables. No code changes:</p>
+```env .env
+MAILINGKIT_PROVIDER=smtp
+MAILINGKIT_FROM_EMAIL=no-reply@example.com
+MAILINGKIT_FROM_NAME="Example App"
+MAILINGKIT_SMTP_HOST=smtp.example.com
+MAILINGKIT_SMTP_USERNAME=apikey
+MAILINGKIT_SMTP_PASSWORD=change-me
+```
+<p>
+  <code>MailingKit.from_env()</code> reads them, picks the provider and sets the default sender.
+  Keyword arguments still win, so <code>MailingKit.from_env(hooks=[...])</code> adds to what the
+  environment says. See <a href="/docs/configuration/">Configuration</a> for every variable.
+</p>
+
+<div class="callout">
+  <p class="callout-title">Not async?</p>
+  <p>
+    Use <code>SyncMailingKit</code>. It has the same methods and arguments, blocks until the send
+    finishes, and is safe to call from any thread, including Django views and Celery tasks.
+  </p>
+</div>
+
+<h2>The whole API</h2>
+<p>Most applications use four methods:</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Method</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>send(to=, subject=, html=, text=, ...)</code></td><td>Send a message you wrote in code.</td></tr>
+      <tr><td><code>send_template(template, data, to=, ...)</code></td><td>Render a template with data and send it.</td></tr>
+      <tr><td><code>render(template, data)</code></td><td>Render without sending, for previews and tests.</td></tr>
+      <tr><td><code>validate(message)</code></td><td>Return the exact message the provider would receive, or raise.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Every send returns a <code>SendResult</code> with MailingKit's own <code>id</code>, the
+  <code>provider</code> name, the <code>provider_message_id</code> and the number of
+  <code>attempts</code>. Every failure raises a subclass of <code>MailingKitError</code>.
+</p>
+
+<h2>Where next</h2>
+<div class="cards">
+  <a class="card-link" href="/docs/templates/"><strong>Templates</strong><span>Template folders, layouts and typed data.</span></a>
+  <a class="card-link" href="/docs/providers/"><strong>Providers</strong><span>Built-in adapters and writing your own.</span></a>
+  <a class="card-link" href="/docs/frameworks/"><strong>Framework integration</strong><span>FastAPI, Django, Celery and scripts.</span></a>
+  <a class="card-link" href="/workshop/"><strong>Workshop</strong><span>A hands-on path from install to production.</span></a>
+</div>

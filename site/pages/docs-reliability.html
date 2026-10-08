@@ -1,0 +1,131 @@
+<!--
+slug: docs/reliability
+title: Errors and retries
+description: MailingKit's error hierarchy, automatic retries for transient failures, idempotency keys that prevent duplicate emails, and hooks for metrics.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Errors and retries</h1>
+<p class="lead">
+  Every provider fails differently. MailingKit translates all of it into one hierarchy, retries
+  what is safe to retry, and makes sure the same event never sends the same email twice.
+</p>
+
+<h2>One error hierarchy</h2>
+```text
+MailingKitError
+├── ConfigurationError
+├── ValidationError                 bad address, header injection, too large...
+│   ├── InvalidAddressError
+│   └── MessageTooLargeError
+├── TemplateError
+│   ├── TemplateNotFoundError
+│   ├── TemplateDataError
+│   └── TemplateRenderError
+└── ProviderError                   .retryable  .provider  .status_code
+    ├── AuthenticationError
+    ├── RateLimitError              .retry_after
+    ├── RecipientRejectedError
+    ├── TemporaryProviderError
+    └── PermanentProviderError
+```
+<p>Catch as broadly or as narrowly as you need:</p>
+```python
+from mailingkit import MailingKitError, ProviderError, ValidationError
+
+try:
+    await mail.send_template("receipt", data, to=customer.email)
+except ValidationError:
+    ...  # our bug or bad input: do not retry, fix the data
+except ProviderError as error:
+    if error.retryable:
+        ...  # still failing after MailingKit's own retries: queue it for later
+    else:
+        ...  # rejected for good: alert someone
+```
+<p>
+  The original provider exception is kept as <code>__cause__</code> for debugging. Error messages
+  never include credentials or message content.
+</p>
+
+<h2>Automatic retries</h2>
+<p>
+  Errors marked <code>retryable</code> (timeouts, dropped connections, 4xx SMTP replies, 5xx HTTP
+  responses, rate limits) are retried inside the call with exponential backoff and full jitter.
+  The default is three attempts. On a rate limit, the provider's <code>Retry-After</code> is used.
+</p>
+```python
+from mailingkit import NO_RETRY, MailingKit, RetryPolicy
+
+mail = MailingKit.from_env(retry=RetryPolicy(max_attempts=5, initial_delay=1, max_delay=20))
+fast_fail = MailingKit.from_env(retry=NO_RETRY)
+```
+<div class="callout">
+  <p class="callout-title">Short retries only</p>
+  <p>
+    These retries happen while your code waits, so they are deliberately short. Retrying for
+    minutes or hours belongs in a queue. Background sending is planned for MailingKit 0.2.
+  </p>
+</div>
+
+<h2>Idempotency</h2>
+<p>
+  Requests get retried, workers crash and restart, users double-click. Pass a key that identifies
+  the business event, and MailingKit sends at most once per key:
+</p>
+```python
+await mail.send_template(
+    ORDER_SHIPPED,
+    data,
+    to=customer.email,
+    idempotency_key=f"order-shipped:{order.id}",
+)
+```
+<ul>
+  <li>A repeat returns the first <code>SendResult</code> with <code>duplicate=True</code>; nothing is sent.</li>
+  <li>Concurrent sends with the same key in one process are serialized, so only one goes out.</li>
+  <li>Providers that support keys natively, such as Resend, receive the key too.</li>
+  <li>Keys are remembered for 24 hours by default (<code>idempotency_ttl=</code>).</li>
+</ul>
+<p>
+  The default store lives in process memory. When several processes or machines send with the same
+  keys, give MailingKit a shared store. It is a two-method protocol:
+</p>
+```python
+class RedisIdempotencyStore:
+    def __init__(self, redis):
+        self.redis = redis
+
+    async def get(self, key):
+        raw = await self.redis.get(f"mailingkit:{key}")
+        return pickle.loads(raw) if raw else None
+
+    async def set(self, key, result, ttl):
+        await self.redis.set(f"mailingkit:{key}", pickle.dumps(result), ex=int(ttl))
+
+mail = MailingKit.from_env(idempotency_store=RedisIdempotencyStore(redis))
+```
+
+<h2>Hooks</h2>
+<p>Hooks observe every send, for metrics, tracing or alerts. They can be sync or async:</p>
+```python
+def record(event):
+    metrics.increment(event.name, tags={"provider": event.provider, "template": event.template})
+
+mail = MailingKit.from_env(hooks=[record])
+```
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Event</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>mail.sent</code></td><td>The provider accepted the message. <code>event.result</code> holds the <code>SendResult</code>.</td></tr>
+      <tr><td><code>mail.retry</code></td><td>An attempt failed and will be retried. <code>event.error</code> holds the error.</td></tr>
+      <tr><td><code>mail.failed</code></td><td>The send failed for good.</td></tr>
+      <tr><td><code>mail.duplicate</code></td><td>An idempotency key was reused; nothing was sent.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Events carry ids, provider and template names and a recipient count, never addresses or content,
+  so they are safe to forward to any monitoring system. A hook that raises is logged and never
+  breaks sending.
+</p>

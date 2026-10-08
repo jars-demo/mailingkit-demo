@@ -1,0 +1,81 @@
+<!--
+slug: docs/architecture
+title: How it fits
+description: Where MailingKit sits in your application, what belongs in the core library, what stays optional, and how it works in monoliths and microservices.
+-->
+<p class="eyebrow">Start here</p>
+<h1>How it fits</h1>
+<p class="lead">
+  MailingKit is a library, not a service. It runs inside your process, next to your code, and
+  owns exactly one job: turning "send this email" into a delivered message.
+</p>
+
+<h2>The pipeline</h2>
+<p>Every send goes through the same steps, in this order:</p>
+<ol>
+  <li><strong>Render.</strong> For <code>send_template()</code>, the data is checked against the template's model, then the subject, HTML and text are rendered.</li>
+  <li><strong>Complete.</strong> The default sender is applied and a text part is generated from HTML when missing.</li>
+  <li><strong>Validate.</strong> Addresses, headers, subject, tags, recipient count and size are checked. Nothing unsafe reaches a provider.</li>
+  <li><strong>Redirect.</strong> If <code>redirect_to</code> is set, every recipient is replaced by that one inbox.</li>
+  <li><strong>Deduplicate.</strong> If an idempotency key was given and already used, the earlier result is returned.</li>
+  <li><strong>Send.</strong> The provider adapter delivers the message. Retryable failures are retried with backoff.</li>
+  <li><strong>Report.</strong> A <code>SendResult</code> is returned, hooks receive an event and a log line is written, with no personal data.</li>
+</ol>
+
+<h2>Core versus optional</h2>
+<p>The rule is simple: if most applications need it to send one email correctly, it is core. Everything else is opt-in.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Core (always installed)</th><th>Optional (extras or your own code)</th></tr></thead>
+    <tbody>
+      <tr><td>Message model and validation</td><td>HTTP API providers such as Resend (<code>mailingkit[resend]</code>)</td></tr>
+      <tr><td>Jinja2 templates with typed data</td><td>Framework glue (<code>mailingkit.contrib.django</code>, imported only by Django)</td></tr>
+      <tr><td>Console, file, memory and SMTP providers</td><td>Shared idempotency stores (Redis, SQL)</td></tr>
+      <tr><td>Error hierarchy, retries, idempotency keys</td><td>Metrics and tracing, through hooks</td></tr>
+      <tr><td>Environment configuration, hooks, logging</td><td>Queues and background workers (planned for 0.2)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Library, not service</h2>
+<p>
+  A central mail service sounds tidy, but it adds a network hop, an API contract, authentication
+  and another thing to deploy before anyone needs it. A library gives every application the same
+  behaviour with none of that. MailingKit is built so the bigger shapes can grow out of it later
+  without changing your code.
+</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Shape</th><th>How it looks</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Library</strong></td><td>Each application calls <code>mail.send()</code> and delivers directly.</td><td>0.1, today</td></tr>
+      <tr><td><strong>Library plus worker</strong></td><td>Applications call <code>mail.enqueue()</code>; a <code>mailingkit worker</code> process sends from a queue.</td><td>Planned for 0.2</td></tr>
+      <tr><td><strong>Central service</strong></td><td>A small HTTP app you write on top of the library, if you ever need one.</td><td>An example, never core</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Monoliths and microservices</h2>
+<p>
+  In a monolith, create one client at startup and share it. In a microservice architecture, each
+  service installs MailingKit and configures it with the same environment variables, so every
+  service validates, retries and reports errors the same way. Shared templates can live in a small
+  internal package that each service depends on.
+</p>
+```text
+User service      ──┐
+Billing service   ──┼──  MailingKit (same library, same config)  ──  provider
+Notification svc  ──┘
+```
+<p>
+  When you want one place to own credentials and templates, the planned worker mode lets
+  services only enqueue, while a single worker does the sending.
+</p>
+
+<h2>What MailingKit is not</h2>
+<ul>
+  <li>Not a CRM, ATS, user system or workflow engine. Your application decides <em>when</em> to send.</li>
+  <li>Not a database. It returns results and emits events; storing history is up to you.</li>
+  <li>Not a marketing or newsletter tool.</li>
+  <li>Not a mail server or a hosted service.</li>
+</ul>

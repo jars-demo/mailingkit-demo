@@ -1,0 +1,126 @@
+<!--
+slug: docs/frameworks
+title: Framework integration
+description: Use MailingKit with FastAPI, Django, Celery, RQ, background workers and plain Python scripts.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Framework integration</h1>
+<p class="lead">
+  MailingKit does not depend on any web framework. The pattern is the same everywhere: create one
+  client when the application starts, and use it wherever you need to send.
+</p>
+
+<h2>FastAPI and other async apps</h2>
+```python main.py
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from mailingkit import MailingKit
+
+mail = MailingKit.from_env(templates="templates")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await mail.aclose()  # releases provider connections
+
+app = FastAPI(lifespan=lifespan)
+
+@app.post("/signup")
+async def signup(name: str, email: str):
+    # ... create the user ...
+    await mail.send_template("welcome", {"name": name}, to=email, idempotency_key=f"welcome:{email}")
+    return {"ok": True}
+```
+<p>
+  The same works for Starlette, Litestar, Quart, aiohttp and any other asyncio code. A complete
+  example with error handling is in
+  <a href="https://github.com/jars-demo/mailingkit-demo/tree/main/examples/fastapi">examples/fastapi</a>.
+</p>
+
+<h2>Django</h2>
+<p>
+  MailingKit ships a Django email backend. Configure it once and every email Django sends, including
+  your <code>send_mail()</code> calls, password resets and admin error emails, goes through
+  MailingKit's validation, providers and retries. No application code changes.
+</p>
+```python settings.py
+# Django 6.1 and newer
+MAILERS = {
+    "default": {
+        "BACKEND": "mailingkit.contrib.django.EmailBackend",
+        # Optional: share a client you configured yourself.
+        # "OPTIONS": {"client": "myproject.mail.mail"},
+    },
+}
+
+# Older Django
+EMAIL_BACKEND = "mailingkit.contrib.django.EmailBackend"
+# MAILINGKIT_CLIENT = "myproject.mail.mail"
+```
+<p>
+  Without a client setting, the backend uses <code>MailingKit.from_env()</code>. Django's
+  placeholder <code>DEFAULT_FROM_EMAIL</code> (<code>webmaster@localhost</code>) is ignored so
+  MailingKit's own default sender applies.
+</p>
+<p>For templates and idempotency, call MailingKit directly from views or tasks with the blocking client:</p>
+```python myproject/mail.py
+from mailingkit import SyncMailingKit
+
+mail = SyncMailingKit.from_env(templates="templates")
+```
+```python views.py
+from myproject.mail import mail
+
+def approve_leave(request, request_id):
+    leave = LeaveRequest.objects.get(pk=request_id)
+    leave.approve()
+    mail.send_template(
+        "leave-approved",
+        {"name": leave.employee.first_name, "dates": leave.dates_display},
+        to=leave.employee.email,
+        idempotency_key=f"leave-approved:{leave.pk}",
+    )
+    ...
+```
+<p>Django is never a dependency of MailingKit. The backend module is only imported when Django loads it.</p>
+
+<h2>Celery, RQ and other workers</h2>
+<p>
+  Use <code>SyncMailingKit</code>. It runs MailingKit's async core on a private event loop in a
+  background thread, so it is safe from any worker thread or process, even one that has its own
+  event loop running.
+</p>
+```python tasks.py
+from celery import shared_task
+from mailingkit import ProviderError, SyncMailingKit
+
+mail = SyncMailingKit.from_env(templates="templates")
+
+@shared_task(bind=True, max_retries=5)
+def send_receipt(self, order_id, email, total):
+    try:
+        mail.send_template(
+            "receipt",
+            {"order_id": order_id, "total": total},
+            to=email,
+            idempotency_key=f"receipt:{order_id}",
+        )
+    except ProviderError as error:
+        if error.retryable:
+            raise self.retry(exc=error, countdown=60)
+        raise
+```
+<p>
+  The idempotency key makes Celery's own retries safe: if the email went out before the worker
+  crashed, a retry in the same process returns the earlier result. Use a shared idempotency store
+  across workers.
+</p>
+
+<h2>Scripts and CLIs</h2>
+```python
+from mailingkit import SyncMailingKit
+
+with SyncMailingKit.from_env() as mail:
+    mail.send(to="ops@example.com", subject="Nightly export finished", text="All 12 files uploaded.")
+```

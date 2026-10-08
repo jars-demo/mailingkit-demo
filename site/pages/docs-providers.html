@@ -1,0 +1,139 @@
+<!--
+slug: docs/providers
+title: Providers
+description: MailingKit's built-in provider adapters (console, file, memory, SMTP, Resend) and how to write and register your own provider.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Providers</h1>
+<p class="lead">
+  A provider adapter is the only part of MailingKit that knows how a specific email service works.
+  Everything above it, including your code, stays the same when you switch.
+</p>
+
+<h2>Built-in providers</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Sends real email</th><th>Install</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td><code>console</code></td><td>no</td><td>core</td><td>Local development. The default.</td></tr>
+      <tr><td><code>file</code></td><td>no</td><td>core</td><td>Writing <code>.eml</code> files to open in a mail client.</td></tr>
+      <tr><td><code>memory</code></td><td>no</td><td>core</td><td>Automated tests.</td></tr>
+      <tr><td><code>smtp</code></td><td>yes</td><td>core</td><td>Any SMTP service, Amazon SES SMTP, Mailpit.</td></tr>
+      <tr><td><code>resend</code></td><td>yes</td><td><code>mailingkit[resend]</code></td><td>The Resend HTTP API.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Choose one with <code>MAILINGKIT_PROVIDER</code>, or construct it yourself:</p>
+```python
+from mailingkit import MailingKit
+from mailingkit.providers import SmtpProvider
+
+mail = MailingKit(
+    SmtpProvider("smtp.example.com", username="apikey", password="change-me"),
+    default_sender="no-reply@example.com",
+)
+```
+
+<h2>SMTP</h2>
+<p>
+  Uses only the standard library. TLS is on by default: <code>starttls</code> on port 587, or
+  <code>ssl</code> for implicit TLS on 465. <code>security="none"</code> is for local tools such as
+  Mailpit, and MailingKit refuses to send credentials over it.
+</p>
+```env
+MAILINGKIT_PROVIDER=smtp
+MAILINGKIT_SMTP_HOST=email-smtp.eu-west-1.amazonaws.com
+MAILINGKIT_SMTP_PORT=587
+MAILINGKIT_SMTP_SECURITY=starttls
+MAILINGKIT_SMTP_USERNAME=...
+MAILINGKIT_SMTP_PASSWORD=...
+```
+<p>
+  SMTP replies are mapped to MailingKit errors: login failures become
+  <code>AuthenticationError</code>, refused recipients <code>RecipientRejectedError</code>, 4xx
+  replies and dropped connections <code>TemporaryProviderError</code> (retried), and 5xx replies
+  <code>PermanentProviderError</code>.
+</p>
+
+<h2>Resend</h2>
+```bash
+pip install "mailingkit[resend]"
+```
+```env
+MAILINGKIT_PROVIDER=resend
+MAILINGKIT_RESEND_API_KEY=re_...
+```
+<p>
+  Tags, attachments, inline images and custom headers are passed through. Idempotency keys are
+  sent as Resend's <code>Idempotency-Key</code> header, so Resend deduplicates too. A 429 becomes
+  <code>RateLimitError</code> with <code>retry_after</code> read from the response.
+</p>
+
+<h2>Writing your own provider</h2>
+<p>
+  A provider is one async method. It receives a message that is already rendered, validated and
+  addressed, sends it, and translates failures into MailingKit errors with an honest
+  <code>retryable</code> flag:
+</p>
+```python acme_provider.py
+from mailingkit import (
+    AuthenticationError,
+    EmailProvider,
+    PermanentProviderError,
+    ProviderResponse,
+    RateLimitError,
+    TemporaryProviderError,
+)
+
+class AcmeMailProvider(EmailProvider):
+    name = "acme"
+
+    def __init__(self, client):
+        self.client = client
+
+    async def send(self, message, *, idempotency_key=None):
+        response = await self.client.post("/emails", json={
+            "from": str(message.sender),
+            "to": [str(a) for a in message.to],
+            "subject": message.subject,
+            "html": message.html,
+            "text": message.text,
+        })
+        if response.status_code == 401:
+            raise AuthenticationError("Acme rejected the API key")
+        if response.status_code == 429:
+            raise RateLimitError("Acme is throttling", retry_after=5)
+        if response.status_code >= 500:
+            raise TemporaryProviderError(f"Acme returned {response.status_code}")
+        if response.status_code >= 400:
+            raise PermanentProviderError(f"Acme returned {response.status_code}")
+        return ProviderResponse(provider_message_id=response.json()["id"])
+
+    async def close(self):
+        await self.client.aclose()
+```
+<p>
+  If your provider raises something that is not a MailingKit error, MailingKit wraps it in
+  <code>PermanentProviderError</code> so your application still only deals with one hierarchy.
+</p>
+
+<h3>Selecting it by name</h3>
+<p>To make <code>MAILINGKIT_PROVIDER=acme</code> work, implement <code>from_env()</code> and register the class, either at runtime:</p>
+```python
+from mailingkit import register_provider
+
+register_provider("acme", AcmeMailProvider)
+```
+<p>or, for a reusable package, with an entry point that MailingKit discovers automatically:</p>
+```toml pyproject.toml
+[project.entry-points."mailingkit.providers"]
+acme = "acme_mailingkit:AcmeMailProvider"
+```
+
+<h3>Raw MIME</h3>
+<p>Services that accept a raw RFC 5322 message can reuse MailingKit's builder:</p>
+```python
+from mailingkit.mime import to_mime
+
+raw_bytes = to_mime(message).as_bytes()
+```

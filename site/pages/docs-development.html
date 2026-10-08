@@ -1,0 +1,79 @@
+<!--
+slug: docs/development
+title: Development mode
+description: Build email features locally without sending real email, using MailingKit's console and file providers and staging redirect.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Development mode</h1>
+<p class="lead">
+  Accidentally emailing real customers from a laptop is the classic mistake. MailingKit makes the
+  safe thing the default and gives you three ways to see your emails without sending them.
+</p>
+
+<h2>Nothing is sent until you say so</h2>
+<p>
+  If <code>MAILINGKIT_PROVIDER</code> is not set, MailingKit uses the console provider. Every
+  email is printed to the terminal and nothing leaves the machine:
+</p>
+```text terminal
+========================================================================
+MailingKit console provider: this email was NOT sent
+------------------------------------------------------------------------
+From:     Example App <no-reply@example.com>
+To:       ada@example.com
+Subject:  Welcome to Acme Cloud, Ada
+------------------------------------------------------------------------
+Welcome, Ada
+
+Your Acme Cloud workspace is ready.
+
+Open your workspace (https://app.example.com)
+========================================================================
+```
+<p>Set <code>MAILINGKIT_CONSOLE_SHOW_HTML=true</code> to print the HTML body too.</p>
+
+<h2>Preview real emails as .eml files</h2>
+```env
+MAILINGKIT_PROVIDER=file
+MAILINGKIT_FILE_DIR=.mailingkit/outbox
+```
+<p>
+  Each email is written as a standard <code>.eml</code> file. Double-click one and your mail
+  client (Outlook, Apple Mail, Thunderbird) shows exactly what the recipient would see, with
+  attachments and inline images. Add <code>.mailingkit/</code> to your <code>.gitignore</code>.
+</p>
+
+<h2>A local inbox with Mailpit</h2>
+<p>
+  For a browser inbox, run <a href="https://mailpit.axllent.org/">Mailpit</a> and point the SMTP
+  provider at it. This also exercises the real SMTP path:
+</p>
+```bash
+docker run --rm -p 8025:8025 -p 1025:1025 axllent/mailpit
+```
+```env
+MAILINGKIT_PROVIDER=smtp
+MAILINGKIT_SMTP_HOST=localhost
+MAILINGKIT_SMTP_PORT=1025
+MAILINGKIT_SMTP_SECURITY=none
+```
+<p>Then open <code>http://localhost:8025</code>.</p>
+
+<h2>Staging: redirect everything</h2>
+<p>
+  Staging should use real delivery, but never reach real users. Set one variable and every email,
+  from every code path, goes to one inbox instead:
+</p>
+```env
+MAILINGKIT_REDIRECT_TO=qa-team@example.com
+```
+<p>
+  The original <code>to</code>, <code>cc</code> and <code>bcc</code> recipients are removed and
+  listed in an <code>X-MailingKit-Original-To</code> header so testers can still see who the email
+  was meant for. <code>SendResult.redirected</code> is <code>True</code> for these sends.
+</p>
+
+<div class="callout">
+  <p class="callout-title">Recommended setup</p>
+  <p>Development: no provider (console) or <code>file</code>. Staging: the real provider plus <code>MAILINGKIT_REDIRECT_TO</code>. Production: the real provider only.</p>
+</div>

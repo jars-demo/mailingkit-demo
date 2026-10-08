@@ -1,0 +1,137 @@
+<!--
+slug: docs/templates
+title: Templates
+description: File-based email templates in MailingKit, with layouts, HTML escaping, automatic text bodies and typed data from dataclasses or Pydantic models.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Templates</h1>
+<p class="lead">
+  Templates keep email copy out of your code. Each one is a folder with a subject and a body,
+  rendered by Jinja2 in a sandbox, with HTML escaping on and missing data treated as an error.
+</p>
+
+<h2>Folder layout</h2>
+```text templates/
+templates/
+    _layouts/
+        base.html          shared layout
+    welcome/
+        subject.txt        required
+        body.html          html body, autoescaped
+        body.txt           optional; generated from body.html when missing
+    password-reset/
+        subject.txt
+        body.html
+```
+<p>Point MailingKit at the folder with <code>templates=</code> or <code>MAILINGKIT_TEMPLATES_DIR</code>:</p>
+```python
+mail = MailingKit.from_env(templates="templates")
+
+await mail.send_template("welcome", {"name": "Ada"}, to="ada@example.com")
+```
+
+<h2>Writing a template</h2>
+```text welcome/subject.txt
+Welcome to {{ product }}, {{ name }}
+```
+```text welcome/body.html
+{% extends "_layouts/base.html" %}
+{% block content %}
+  <h1>Welcome, {{ name }}</h1>
+  <p>Your {{ product }} workspace is ready.</p>
+  <p><a href="{{ login_url }}">Open your workspace</a></p>
+{% endblock %}
+```
+<p>
+  Any Jinja2 feature works: <code>extends</code>, <code>include</code>, loops, conditions and
+  filters. Values are escaped in <code>.html</code> files, so a user called
+  <code>&lt;script&gt;</code> is shown as text. Plain text files are not escaped.
+</p>
+<p>
+  Subjects have their whitespace collapsed to single spaces, so data can never put a line break
+  into the <code>Subject</code> header.
+</p>
+
+<h2>Typed template data</h2>
+<p>Bind a template to a dataclass or a Pydantic model to check data before anything renders:</p>
+```python
+from dataclasses import dataclass
+from mailingkit import Template
+
+@dataclass
+class CandidateSelected:
+    candidate_name: str
+    company_name: str
+    next_round: str
+    interview_url: str
+
+CANDIDATE_SELECTED = Template("candidate-selected", CandidateSelected)
+
+await mail.send_template(
+    CANDIDATE_SELECTED,
+    CandidateSelected(
+        candidate_name="Grace",
+        company_name="Acme",
+        next_round="technical interview",
+        interview_url="https://jobs.example.com/interview/123",
+    ),
+    to="grace@example.com",
+)
+```
+<p>
+  You can also pass a plain dict. It is checked against the model first, and every problem is
+  reported at once:
+</p>
+```text
+TemplateDataError: Template 'candidate-selected' data is invalid:
+missing required fields: interview_url, next_round
+```
+<p>
+  Dataclasses catch missing and unknown fields. Pydantic models also validate types, so
+  <code>{"number": "abc"}</code> for an <code>int</code> field fails clearly. Pydantic is never
+  required: MailingKit uses it only when your model is a Pydantic model.
+</p>
+
+<div class="callout">
+  <p class="callout-title">Untyped templates are still strict</p>
+  <p>
+    Without a model, a template that uses a variable you did not pass raises
+    <code>TemplateDataError</code> instead of rendering an empty string. Typed templates just
+    catch the problem earlier and list every missing field.
+  </p>
+</div>
+
+<h2>Previewing</h2>
+<p><code>render()</code> returns the subject and bodies without sending, which is useful for previews, admin screens and tests:</p>
+```python
+rendered = mail.render(CANDIDATE_SELECTED, data)
+print(rendered.subject)
+print(rendered.text)
+```
+
+<h2>Custom Jinja2 environments</h2>
+<p>For custom filters or a different loader, build a <code>TemplateRenderer</code> yourself:</p>
+```python
+from mailingkit import MailingKit, TemplateRenderer
+
+renderer = TemplateRenderer("templates", globals={"support_email": "help@example.com"})
+renderer.environment.filters["money"] = lambda cents: f"${cents / 100:,.2f}"
+
+mail = MailingKit.from_env(templates=renderer)
+```
+<p>
+  Passing your own <code>environment=</code> is also supported. In that case autoescaping and
+  strict undefined handling are your responsibility.
+</p>
+
+<h2>Errors</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Error</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>TemplateNotFoundError</code></td><td>No <code>subject.txt</code>, or no body file.</td></tr>
+      <tr><td><code>TemplateDataError</code></td><td>Data is missing, unknown, of the wrong type, or a variable is undefined.</td></tr>
+      <tr><td><code>TemplateRenderError</code></td><td>A syntax error, or the sandbox blocked an unsafe operation.</td></tr>
+    </tbody>
+  </table>
+</div>

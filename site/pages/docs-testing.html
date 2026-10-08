@@ -1,0 +1,99 @@
+<!--
+slug: docs/testing
+title: Testing
+description: Test code that sends email with MailingKit's in-memory provider, including failures and retries, without network access or credentials.
+-->
+<p class="eyebrow">Guides</p>
+<h1>Testing</h1>
+<p class="lead">
+  Code that sends email should be easy to test. MailingKit's memory provider records every message
+  instead of sending it, so tests stay fast, offline and deterministic.
+</p>
+
+<h2>The memory provider</h2>
+```python test_signup.py
+from mailingkit import MailingKit
+from mailingkit.providers import MemoryProvider
+
+async def test_signup_sends_welcome_email():
+    outbox = MemoryProvider()
+    mail = MailingKit(outbox, default_sender="app@example.com", templates="templates")
+
+    await signup(mail, name="Ada", email="ada@example.com")
+
+    assert outbox.last.subject == "Welcome to Acme, Ada"
+    assert "Open your workspace" in outbox.last.text
+    assert len(outbox.sent_to("ada@example.com")) == 1
+```
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Member</th><th>What it gives you</th></tr></thead>
+    <tbody>
+      <tr><td><code>outbox</code></td><td>Every message sent, in order, as <code>EmailMessage</code> objects.</td></tr>
+      <tr><td><code>last</code></td><td>The most recent message. Raises <code>LookupError</code> if none.</td></tr>
+      <tr><td><code>sent_to(email)</code></td><td>Messages where the address is a to, cc or bcc recipient.</td></tr>
+      <tr><td><code>idempotency_keys</code></td><td>The key passed with each send.</td></tr>
+      <tr><td><code>fail_next(*errors)</code></td><td>Raise these errors on the next sends, in order.</td></tr>
+      <tr><td><code>clear()</code></td><td>Reset everything between tests.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>A pytest fixture</h2>
+```python conftest.py
+import pytest
+from mailingkit import MailingKit, RetryPolicy
+from mailingkit.providers import MemoryProvider
+
+@pytest.fixture
+def outbox():
+    return MemoryProvider()
+
+@pytest.fixture
+def mail(outbox):
+    return MailingKit(
+        outbox,
+        default_sender="app@example.com",
+        templates="templates",
+        retry=RetryPolicy(initial_delay=0, jitter=False),  # retries without waiting
+    )
+```
+<p>
+  Inject the client into your code (a function argument, a FastAPI dependency, a Django setting)
+  rather than importing a global, and tests can swap it freely.
+</p>
+
+<h2>Testing failure paths</h2>
+```python
+from mailingkit import AuthenticationError, TemporaryProviderError
+
+async def test_transient_failure_is_retried(mail, outbox):
+    outbox.fail_next(TemporaryProviderError("timeout"))
+
+    result = await mail.send(to="ada@example.com", subject="Hi", text="Hello")
+
+    assert result.attempts == 2
+
+async def test_bad_credentials_surface_as_one_error(mail, outbox):
+    outbox.fail_next(AuthenticationError("bad key"))
+
+    with pytest.raises(AuthenticationError):
+        await mail.send(to="ada@example.com", subject="Hi", text="Hello")
+```
+
+<h2>Testing templates</h2>
+<p>Render templates directly to check copy and data without any provider:</p>
+```python
+def test_receipt_shows_total(mail):
+    rendered = mail.render("receipt", {"order_id": 7, "total": "$12.00"})
+
+    assert rendered.subject == "Receipt for order 7"
+    assert "$12.00" in rendered.html
+```
+
+<h2>Django tests</h2>
+<p>
+  Point the backend at a client built on a memory provider in your test settings, then assert on
+  the provider's outbox. Django's own <code>locmem</code> backend also still works if you prefer
+  <code>django.core.mail.outbox</code>.
+</p>

@@ -1,0 +1,292 @@
+<!--
+slug:
+title: MailingKit
+description: MailingKit is a drop-in, provider-agnostic transactional email layer for Python. One small typed API for SMTP, Resend or your own provider, safe by default in development.
+layout: landing
+-->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <p class="eyebrow">Python library &middot; v{{version}}</p>
+      <h1>Transactional email, <em>without the plumbing.</em></h1>
+      <p class="lead">
+        MailingKit is a drop-in mailing layer for Python applications. Your code calls one small,
+        typed API. MailingKit renders the template, validates the message, retries the hiccups
+        and talks to whichever provider you choose.
+      </p>
+      <button class="install install-copy" type="button" data-copy="pip install mailingkit" aria-label="Copy install command">
+        <span><span class="prompt">$</span> pip install mailingkit</span>
+        <span class="install-hint">Copy</span>
+      </button>
+      <div class="hero-actions hero-buttons">
+        <a class="btn btn-primary" href="/docs/">Read the docs</a>
+        <a class="btn btn-ghost" href="/workshop/">Try the workshop</a>
+      </div>
+      <ul class="hero-meta">
+        <li>Python 3.11+</li>
+        <li>Any provider</li>
+        <li>Any framework</li>
+        <li>Typed</li>
+        <li>MIT</li>
+      </ul>
+    </div>
+    <div class="hero-code">
+```python app.py
+from mailingkit import MailingKit
+
+mail = MailingKit.from_env()
+
+await mail.send_template(
+    "welcome",
+    {"name": "Ada"},
+    to="ada@example.com",
+    idempotency_key="welcome:ada",
+)
+```
+      <div class="terminal" aria-label="Console output">
+        <div class="terminal-bar"><i></i><i></i><i></i><span>no provider configured</span></div>
+        <pre><span class="ok">MailingKit console provider: this email was NOT sent</span>
+From:     Example App &lt;no-reply@example.com&gt;
+To:       ada@example.com
+Subject:  Welcome to Example, Ada</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Where it sits</p>
+      <h2>One layer between your application and every provider.</h2>
+      <p>
+        Your application knows MailingKit. MailingKit knows the provider. Switching from SMTP to an
+        HTTP API is an environment variable, not a refactor.
+      </p>
+    </div>
+    <div class="flow" role="img" aria-label="Your application calls MailingKit, which uses a provider adapter to deliver to the recipient">
+      <div class="flow-node">
+        <h3>Your application</h3>
+        <p>Any Python code that needs to send email.</p>
+        <ul><li>FastAPI</li><li>Django</li><li>workers</li><li>scripts</li></ul>
+      </div>
+      <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+      <div class="flow-node flow-core">
+        <h3>MailingKit</h3>
+        <p>One API: send, send_template, render, validate.</p>
+        <ul><li>templates</li><li>validation</li><li>retries</li><li>idempotency</li><li>hooks</li></ul>
+      </div>
+      <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+      <div class="flow-node">
+        <h3>Provider adapter</h3>
+        <p>Swappable. Write your own in one method.</p>
+        <ul><li>SMTP</li><li>Resend</li><li>console</li><li>yours</li></ul>
+      </div>
+      <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+      <div class="flow-node">
+        <h3>Recipient</h3>
+        <p>The right email, sent once.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Why MailingKit</p>
+      <h2>The boring parts of email, handled once.</h2>
+      <p>Every application ends up rebuilding the same mailing code. MailingKit is that code, written carefully, tested, and shared.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature">
+        <span class="num">01</span>
+        <h3>Provider-agnostic</h3>
+        <p>SMTP, Resend, a console printer or your own adapter. Errors and results look the same whichever one is underneath.</p>
+      </div>
+      <div class="feature">
+        <span class="num">02</span>
+        <h3>Framework-independent</h3>
+        <p>Plain Python with one dependency, Jinja2. Works in FastAPI, Django, Celery, CLIs and scripts, async or not.</p>
+      </div>
+      <div class="feature">
+        <span class="num">03</span>
+        <h3>Safe in development</h3>
+        <p>Nothing is sent until you configure a provider. Write .eml previews, or redirect every email to one staging inbox.</p>
+      </div>
+      <div class="feature">
+        <span class="num">04</span>
+        <h3>Typed templates</h3>
+        <p>Bind a template to a dataclass or Pydantic model. Missing data fails before sending, not in the customer's inbox.</p>
+      </div>
+      <div class="feature">
+        <span class="num">05</span>
+        <h3>Reliable delivery</h3>
+        <p>Transient failures retry with backoff. Idempotency keys make sure the same event never sends the same email twice.</p>
+      </div>
+      <div class="feature">
+        <span class="num">06</span>
+        <h3>Secure by default</h3>
+        <p>Header injection blocked, HTML escaped, templates sandboxed, TLS required for SMTP credentials, secrets kept out of logs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Any application</p>
+      <h2>Your domain stays in your code.</h2>
+      <p>MailingKit has no idea what a candidate, an order or an invoice is. It only sees a template and the data you give it, which is why it fits anywhere.</p>
+    </div>
+    <div class="usecases">
+      <div class="usecase">
+        <p class="kind">SaaS</p>
+        <code class="event">user.created</code>
+        <span class="arrow">&darr;</span>
+        <p>welcome email with a sign-in link</p>
+      </div>
+      <div class="usecase">
+        <p class="kind">Recruitment</p>
+        <code class="event">candidate.selected</code>
+        <span class="arrow">&darr;</span>
+        <p>invitation to the next interview round</p>
+      </div>
+      <div class="usecase">
+        <p class="kind">E-commerce</p>
+        <code class="event">order.shipped</code>
+        <span class="arrow">&darr;</span>
+        <p>shipping email with a tracking link</p>
+      </div>
+      <div class="usecase">
+        <p class="kind">Authentication</p>
+        <code class="event">password.reset.requested</code>
+        <span class="arrow">&darr;</span>
+        <p>a reset link that expires in 30 minutes</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Fits your stack</p>
+      <h2>Create one client. Use it everywhere.</h2>
+      <p>The same object works in an async web app, a blocking worker or a test. Nothing framework-specific is required.</p>
+    </div>
+    <div class="tabs" data-tabs>
+      <div class="tablist" role="tablist" aria-label="Integration examples">
+        <button role="tab" id="tab-fastapi" aria-controls="panel-fastapi" aria-selected="true">FastAPI</button>
+        <button role="tab" id="tab-django" aria-controls="panel-django" aria-selected="false" tabindex="-1">Django</button>
+        <button role="tab" id="tab-worker" aria-controls="panel-worker" aria-selected="false" tabindex="-1">Worker or script</button>
+        <button role="tab" id="tab-tests" aria-controls="panel-tests" aria-selected="false" tabindex="-1">Tests</button>
+      </div>
+      <div role="tabpanel" id="panel-fastapi" aria-labelledby="tab-fastapi">
+```python main.py
+from fastapi import FastAPI
+from mailingkit import MailingKit
+
+mail = MailingKit.from_env()
+app = FastAPI()
+
+@app.post("/signup")
+async def signup(email: str, name: str):
+    await mail.send_template("welcome", {"name": name}, to=email)
+    return {"ok": True}
+```
+      </div>
+      <div role="tabpanel" id="panel-django" aria-labelledby="tab-django" hidden>
+```python settings.py
+# Every send_mail(), password reset and admin error email now goes through MailingKit.
+MAILERS = {
+    "default": {"BACKEND": "mailingkit.contrib.django.EmailBackend"},
+}
+
+# Django before 6.1:
+# EMAIL_BACKEND = "mailingkit.contrib.django.EmailBackend"
+```
+      </div>
+      <div role="tabpanel" id="panel-worker" aria-labelledby="tab-worker" hidden>
+```python tasks.py
+from mailingkit import Attachment, SyncMailingKit
+
+mail = SyncMailingKit.from_env()  # blocking API, safe from any thread
+
+def send_invoice(invoice_id: int, email: str, pdf: bytes) -> None:
+    mail.send(
+        to=email,
+        subject=f"Invoice {invoice_id}",
+        text="Your invoice is attached.",
+        attachments=[Attachment(f"invoice-{invoice_id}.pdf", pdf)],
+        idempotency_key=f"invoice:{invoice_id}",
+    )
+```
+      </div>
+      <div role="tabpanel" id="panel-tests" aria-labelledby="tab-tests" hidden>
+```python test_signup.py
+from mailingkit import MailingKit
+from mailingkit.providers import MemoryProvider
+
+async def test_signup_sends_welcome_email():
+    outbox = MemoryProvider()
+    mail = MailingKit(outbox, default_sender="app@example.com", templates="templates")
+
+    await signup(mail, "ada@example.com")
+
+    assert outbox.last.subject == "Welcome to Example, Ada"
+```
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Scope</p>
+      <h2>Small on purpose.</h2>
+      <p>MailingKit does the mailing and nothing else. That is what keeps it easy to drop in and easy to trust.</p>
+    </div>
+    <div class="split">
+      <div class="panel">
+        <h3>In the box</h3>
+        <p>Core library, one dependency.</p>
+        <ul class="checklist">
+          <li>Message model, validation and safety limits</li>
+          <li>Jinja2 templates with typed data and text fallback</li>
+          <li>Console, file, memory, SMTP and Resend providers</li>
+          <li>One error hierarchy across every provider</li>
+          <li>Retries, idempotency keys, staging redirect</li>
+          <li>Hooks for metrics and tracing, Django backend</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Not its job</h3>
+        <p>These stay in your application.</p>
+        <ul class="checklist out">
+          <li>Users, candidates, orders or any business data</li>
+          <li>Deciding when an email should be sent</li>
+          <li>Storing delivery history in a database</li>
+          <li>Marketing campaigns and newsletters</li>
+          <li>Running a mail server</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="container">
+    <h2>Drop MailingKit into your application.</h2>
+    <p>Install it, set two environment variables, send your first email. The workshop walks you through it in about 45 minutes.</p>
+    <div class="hero-actions">
+      <button class="install install-copy" type="button" data-copy="pip install mailingkit" aria-label="Copy install command">
+        <span><span class="prompt">$</span> pip install mailingkit</span>
+        <span class="install-hint">Copy</span>
+      </button>
+      <a class="btn btn-primary" href="/docs/">Get started</a>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,81 @@
+<!--
+slug: docs/configuration
+title: Configuration
+description: Every MAILINGKIT_ environment variable and constructor option, with defaults.
+-->
+<p class="eyebrow">Reference</p>
+<h1>Configuration</h1>
+<p class="lead">
+  Configure MailingKit with environment variables through <code>MailingKit.from_env()</code>, with
+  constructor arguments, or both. Keyword arguments always win over the environment.
+</p>
+
+<h2>Environment variables</h2>
+<p>Every variable uses the <code>MAILINGKIT_</code> prefix so it cannot collide with other libraries' <code>MAIL_*</code> settings. Blank values count as unset.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Meaning</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>MAILINGKIT_PROVIDER</code></td><td><code>console</code>, <code>file</code>, <code>memory</code>, <code>smtp</code>, <code>resend</code>, or a registered plugin</td><td><code>console</code></td></tr>
+      <tr><td><code>MAILINGKIT_FROM_EMAIL</code></td><td>Default sender address</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_FROM_NAME</code></td><td>Default sender display name</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_TEMPLATES_DIR</code></td><td>Template folder</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_REDIRECT_TO</code></td><td>Send every email to this address instead</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_MAX_ATTEMPTS</code></td><td>Attempts per send for transient failures</td><td><code>3</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>SMTP</h3>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Meaning</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>MAILINGKIT_SMTP_HOST</code></td><td>Server host (required)</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_SMTP_PORT</code></td><td>Server port</td><td>587, 465 or 25 by security</td></tr>
+      <tr><td><code>MAILINGKIT_SMTP_SECURITY</code></td><td><code>starttls</code>, <code>ssl</code> or <code>none</code></td><td><code>starttls</code></td></tr>
+      <tr><td><code>MAILINGKIT_SMTP_USERNAME</code></td><td>Login (set with the password)</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_SMTP_PASSWORD</code></td><td>Password, held as a <code>Secret</code></td><td></td></tr>
+      <tr><td><code>MAILINGKIT_SMTP_TIMEOUT</code></td><td>Seconds</td><td><code>30</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>Resend</h3>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Meaning</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>MAILINGKIT_RESEND_API_KEY</code></td><td>API key (required)</td><td></td></tr>
+      <tr><td><code>MAILINGKIT_RESEND_BASE_URL</code></td><td>API base URL</td><td><code>https://api.resend.com</code></td></tr>
+      <tr><td><code>MAILINGKIT_RESEND_TIMEOUT</code></td><td>Seconds</td><td><code>30</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>Development providers</h3>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Meaning</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>MAILINGKIT_FILE_DIR</code></td><td>Output folder for the <code>file</code> provider</td><td><code>.mailingkit/outbox</code></td></tr>
+      <tr><td><code>MAILINGKIT_CONSOLE_SHOW_HTML</code></td><td>Also print the HTML body</td><td><code>false</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Constructor options</h2>
+```python
+MailingKit(
+    provider=None,                 # an EmailProvider; console when omitted
+    default_sender=None,           # "App <no-reply@example.com>" or an Address
+    templates=None,                # a folder path or a TemplateRenderer
+    retry=None,                    # RetryPolicy(); NO_RETRY to disable
+    idempotency_store=None,        # InMemoryIdempotencyStore() by default
+    idempotency_ttl=86400,         # seconds a key is remembered
+    redirect_to=None,              # one inbox for every email (staging)
+    limits=None,                   # Limits(max_recipients=50, max_message_bytes=10 MiB)
+    hooks=(),                      # callables receiving MailEvent
+)
+```
+<p>Configuration problems raise <code>ConfigurationError</code> with the exact variable name, at startup rather than on the first send.</p>

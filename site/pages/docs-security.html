@@ -1,0 +1,67 @@
+<!--
+slug: docs/security
+title: Security
+description: The security defaults built into MailingKit, covering header injection, HTML escaping, template sandboxing, secrets, TLS and logging.
+-->
+<p class="eyebrow">Reference</p>
+<h1>Security</h1>
+<p class="lead">
+  Email is an old protocol with sharp edges. MailingKit's defaults are chosen so the safe path is
+  the one you get without thinking about it.
+</p>
+
+<h2>Header injection</h2>
+<p>
+  A line break in a header value lets an attacker add their own headers, such as a hidden
+  <code>Bcc</code>. MailingKit rejects carriage returns, line feeds and null bytes in subjects,
+  display names, addresses and custom header values, and collapses whitespace in rendered
+  subjects so template data cannot inject one either. Headers that MailingKit builds itself
+  (<code>From</code>, <code>To</code>, <code>Cc</code>, <code>Bcc</code>, <code>Subject</code>,
+  <code>Content-Type</code> and others) cannot be overridden through <code>headers=</code>.
+</p>
+
+<h2>Untrusted content in templates</h2>
+<ul>
+  <li>Values are HTML-escaped in <code>.html</code> templates. Mark trusted HTML explicitly with Jinja2's <code>|safe</code> only when you are sure.</li>
+  <li>Templates run in Jinja2's sandbox, which blocks access to internal attributes such as <code>__class__</code>.</li>
+  <li>Templates are only loaded by name from your template folder. Names with <code>..</code> or absolute paths are refused, and user input is never compiled as a template.</li>
+</ul>
+<div class="callout">
+  <p class="callout-title">Links from users</p>
+  <p>Escaping stops markup, not malicious URLs. Build links from values you control (ids, tokens) rather than accepting full URLs from users.</p>
+</div>
+
+<h2>Secrets</h2>
+<p>
+  Credentials are held in a <code>Secret</code> type whose <code>repr</code> and <code>str</code>
+  are always <code>Secret('**********')</code>. Provider reprs and error messages never include API
+  keys or passwords. Keep credentials in environment variables or your secret manager; MailingKit
+  never needs them in code.
+</p>
+
+<h2>Logs and events</h2>
+<p>
+  Log lines and hook events contain MailingKit's send id, the provider, the template name, the
+  attempt number and the error type. They never contain recipients, subjects, bodies or template
+  data, so forwarding them to a log platform does not leak personal data.
+</p>
+
+<h2>Transport security</h2>
+<p>
+  SMTP uses STARTTLS with certificate verification by default. Implicit TLS is available with
+  <code>security="ssl"</code>. Plain connections are allowed only for local tools, and MailingKit
+  refuses to send a username and password over them. HTTP providers use HTTPS.
+</p>
+
+<h2>Limits</h2>
+<ul>
+  <li>At most 50 recipients per message and about 10 MiB per message by default (<code>Limits</code>).</li>
+  <li>Attachment filenames with path separators, control characters or <code>..</code> are refused.</li>
+  <li>Addresses are validated before sending, including internationalized domains.</li>
+</ul>
+
+<h2>Reporting a vulnerability</h2>
+<p>
+  Please report security issues privately through GitHub's
+  <a href="https://github.com/jars-demo/mailingkit-demo/security">security advisories</a> rather than a public issue.
+</p>
