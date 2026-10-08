@@ -1,0 +1,6 @@
+{% extends "_layouts/base.html" %}
+{% block content %}
+<h1 style="font-family:Georgia,serif">It's on the way, {{ customer_name }}</h1>
+<p>Order <strong>{{ order_number }}</strong> has shipped.</p>
+<p><a href="{{ tracking_url }}">Track your parcel</a></p>
+{% endblock %}

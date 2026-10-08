@@ -1,0 +1,6 @@
+{% extends "_layouts/base.html" %}
+{% block content %}
+<h1 style="font-family:Georgia,serif">Good news, {{ candidate_name }}</h1>
+<p>{{ company_name }} would like to invite you to the {{ next_round }}.</p>
+<p><a href="{{ interview_url }}">Pick an interview slot</a></p>
+{% endblock %}
