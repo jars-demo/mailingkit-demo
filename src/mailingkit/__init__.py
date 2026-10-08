@@ -10,6 +10,7 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+from mailingkit.config import Secret
 from mailingkit.errors import (
     AuthenticationError,
     ConfigurationError,
@@ -28,6 +29,8 @@ from mailingkit.errors import (
     ValidationError,
 )
 from mailingkit.message import Address, Attachment, EmailMessage
+from mailingkit.providers import EmailProvider, register_provider
+from mailingkit.results import MailEvent, ProviderResponse, SendResult
 from mailingkit.templates import RenderedTemplate, Template, TemplateRenderer
 from mailingkit.validation import Limits
 
@@ -42,15 +45,20 @@ __all__ = [
     "AuthenticationError",
     "ConfigurationError",
     "EmailMessage",
+    "EmailProvider",
     "InvalidAddressError",
     "Limits",
+    "MailEvent",
     "MailingKitError",
     "MessageTooLargeError",
     "PermanentProviderError",
     "ProviderError",
+    "ProviderResponse",
     "RateLimitError",
     "RecipientRejectedError",
     "RenderedTemplate",
+    "Secret",
+    "SendResult",
     "Template",
     "TemplateDataError",
     "TemplateError",
@@ -60,4 +68,5 @@ __all__ = [
     "TemporaryProviderError",
     "ValidationError",
     "__version__",
+    "register_provider",
 ]
