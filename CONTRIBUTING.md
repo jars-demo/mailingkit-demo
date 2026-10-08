@@ -20,7 +20,7 @@ Run these before opening a pull request. CI runs the same commands.
 ```bash
 uv run pytest                 # tests
 uv run ruff check .           # lint
-uv run ruff format --check .  # formatting
+uv run ruff format --check src tests examples  # formatting
 uv run mypy                   # strict type checking
 ```
 

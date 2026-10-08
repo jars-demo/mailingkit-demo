@@ -39,7 +39,7 @@ examples/                  standalone apps using the package; not shipped
 ```bash
 uv run pytest
 uv run ruff check .
-uv run ruff format --check .
+uv run ruff format --check src tests examples
 uv run mypy
 ```
 
