@@ -28,6 +28,7 @@ from mailingkit.errors import (
     ValidationError,
 )
 from mailingkit.message import Address, Attachment, EmailMessage
+from mailingkit.templates import RenderedTemplate, Template, TemplateRenderer
 from mailingkit.validation import Limits
 
 try:
@@ -49,10 +50,13 @@ __all__ = [
     "ProviderError",
     "RateLimitError",
     "RecipientRejectedError",
+    "RenderedTemplate",
+    "Template",
     "TemplateDataError",
     "TemplateError",
     "TemplateNotFoundError",
     "TemplateRenderError",
+    "TemplateRenderer",
     "TemporaryProviderError",
     "ValidationError",
     "__version__",
