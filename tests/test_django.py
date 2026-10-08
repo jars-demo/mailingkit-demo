@@ -8,16 +8,18 @@ django = pytest.importorskip("django")
 
 from django.conf import settings  # noqa: E402
 
+BACKEND = "mailingkit.contrib.django.EmailBackend"
+
 if not settings.configured:
-    settings.configure(
-        MAILERS={
-            "default": {
-                "BACKEND": "mailingkit.contrib.django.EmailBackend",
-                "OPTIONS": {"client": "tests.test_django.CLIENT"},
+    if django.VERSION >= (6, 1):
+        mail_settings: dict[str, object] = {
+            "MAILERS": {
+                "default": {"BACKEND": BACKEND, "OPTIONS": {"client": "tests.test_django.CLIENT"}}
             }
-        },
-        DEFAULT_FROM_EMAIL="webmaster@localhost",
-    )
+        }
+    else:
+        mail_settings = {"EMAIL_BACKEND": BACKEND, "MAILINGKIT_CLIENT": "tests.test_django.CLIENT"}
+    settings.configure(DEFAULT_FROM_EMAIL="webmaster@localhost", **mail_settings)
     django.setup()
 
 from django.core import mail as django_mail  # noqa: E402
