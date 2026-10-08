@@ -24,6 +24,8 @@ await mail.send_template("welcome", {"name": "Ada"}, to="ada@example.com")
 - **Typed.** Bind templates to dataclasses or Pydantic models and catch missing data before an
   email goes out. Ships `py.typed`, checked with `mypy --strict`.
 
+**Documentation, workshop and API reference:** [mailingkit.jishanahmed.in](https://mailingkit.jishanahmed.in)
+
 > Status: `0.1.0`, alpha. The API is small on purpose and may still change before `1.0`.
 
 ## Contents

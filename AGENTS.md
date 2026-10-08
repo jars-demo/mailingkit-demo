@@ -19,7 +19,12 @@ src/mailingkit/            the package
   contrib/                 optional framework glue (never imported by the core)
 tests/                     pytest suite, fixtures in tests/fixtures
 examples/                  standalone apps using the package; not shipped
+site/                      mailingkit.jishanahmed.in: python site/build.py writes _site/
+  pages/*.html             page fragments; ```fences``` are highlighted at build time
 ```
+
+The website documents the package. The API reference page is generated from the source with
+`ast`, so a public API change shows up there automatically; update the hand-written pages too.
 
 ## Rules
 
