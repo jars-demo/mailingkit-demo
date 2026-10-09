@@ -1,5 +1,10 @@
 # MailingKit
 
+[![PyPI](https://img.shields.io/pypi/v/mailingkit)](https://pypi.org/project/mailingkit/)
+[![Python](https://img.shields.io/pypi/pyversions/mailingkit)](https://pypi.org/project/mailingkit/)
+[![CI](https://github.com/jars-demo/mailingkit-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/jars-demo/mailingkit-demo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/jars-demo/mailingkit-demo/blob/main/LICENSE)
+
 **Transactional email for Python, without the plumbing.**
 
 MailingKit is a small, typed library you drop into any Python application that needs to send
@@ -24,7 +29,7 @@ await mail.send_template("welcome", {"name": "Ada"}, to="ada@example.com")
 - **Typed.** Bind templates to dataclasses or Pydantic models and catch missing data before an
   email goes out. Ships `py.typed`, checked with `mypy --strict`.
 
-**Documentation, workshop and API reference:** [mailingkit.jishanahmed.in](https://mailingkit.jishanahmed.in)
+**Docs:** [mailingkit.jishanahmed.in](https://mailingkit.jishanahmed.in) · **PyPI:** [pypi.org/project/mailingkit](https://pypi.org/project/mailingkit/)
 
 > Status: `0.1.0`, alpha. The API is small on purpose and may still change before `1.0`.
 
