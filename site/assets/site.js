@@ -78,6 +78,21 @@
     });
   });
 
+  // Back to top: appears after scrolling down a screen.
+  var toTop = document.querySelector(".to-top");
+  if (toTop) {
+    toTop.hidden = false;
+    var update = function () {
+      toTop.classList.toggle("visible", window.scrollY > window.innerHeight * 0.8);
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    update();
+    toTop.addEventListener("click", function () {
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    });
+  }
+
   // Mark the section of the on-this-page list currently in view.
   var tocLinks = document.querySelectorAll(".toc a");
   if (tocLinks.length && "IntersectionObserver" in window) {
