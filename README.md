@@ -309,7 +309,7 @@ EMAIL_BACKEND = "mailingkit.contrib.django.EmailBackend"
 
 **Celery, RQ, scripts.** Use `SyncMailingKit`. It is safe to call from any thread.
 
-See [`examples/`](examples/) for complete, runnable apps.
+See [`examples/`](https://github.com/jars-demo/mailingkit-demo/tree/main/examples) for complete, runnable apps.
 
 ## Testing your application
 
@@ -382,8 +382,8 @@ MailingKit grows in small steps. The library stays the product.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome.
+See [CONTRIBUTING.md](https://github.com/jars-demo/mailingkit-demo/blob/main/CONTRIBUTING.md). Issues and pull requests are welcome.
 
 ## License
 
-[MIT](LICENSE) © Jishanahmed AR Shaikh (JARS)
+[MIT](https://github.com/jars-demo/mailingkit-demo/blob/main/LICENSE) © Jishanahmed AR Shaikh (JARS)
